@@ -21,7 +21,7 @@ import
 type
   TSystemCC* = enum
     ccNone, ccGcc, ccLLVM_Gcc, ccCLang, ccLcc, ccBcc, ccDmc, ccWcc, ccVcc,
-    ccTcc, ccPcc, ccUcc, ccIcl, asmFasm
+    ccTcc, ccPcc, ccUcc, ccIcl, asmFasm, asmMasm, asmMasm64
   TInfoCCProp* = enum         # properties of the C compiler:
     hasSwitchRange,           # CC allows ranges in switch statements (GNU C)
     hasComputedGoto,          # CC has computed goto (GNU C extension)
@@ -345,6 +345,36 @@ compiler fasm:
     packedPragma: "",
     props: {})
 
+# Microsoft assembler
+compiler masm:
+  result = (
+    name: "masm",
+    objExt: "obj",
+    optSpeed: "",
+    optSize: "",
+    compilerExe: "ml",
+    cppCompiler: "",
+    compileTmpl: "/c /Fo $objfile $file",
+    buildGui: "",
+    buildDll: "",
+    buildLib: "",
+    linkerExe: "",
+    linkTmpl: "",
+    includeCmd: "",
+    linkDirCmd: "",
+    linkLibCmd: "",
+    debug: "",
+    pic: "",
+    asmStmtFrmt: "",
+    structStmtFmt: "",
+    packedPragma: "",
+    props: {})
+
+# Microsoft assembler 64bit
+compiler masm64:
+  result = masm()
+  result.compilerExe = "ml64"
+
 const
   CC*: array[succ(low(TSystemCC))..high(TSystemCC), TInfoCC] = [
     gcc(),
@@ -359,7 +389,9 @@ const
     pcc(),
     ucc(),
     icl(),
-    fasm()]
+    fasm(),
+    masm(),
+    masm64()]
 
   hExt* = ".h"
 
@@ -372,7 +404,7 @@ var
   cLinkedLibs*: seq[string] = @[] # libraries to link
 
 const
-  cValidAssemblers* = {asmFasm}
+  cValidAssemblers* = {asmFasm, asmMasm, asmMasm64}
 
 # implementation
 
@@ -584,8 +616,11 @@ proc getCompileCFileCmd*(cfile: Cfile): string =
     if customAssembler.len > 0:
       c = nameToCC(customAssembler)
     else:
-      if targetCPU == cpuI386 or targetCPU == cpuAmd64:
-        c = asmFasm
+      if c == ccVcc or (c == ccIcl and targetOS == osWindows):
+        if targetCPU == cpuAmd64:
+          c = asmMasm64
+        else:
+          c = asmMasm
       else:
         c = ccNone
 
